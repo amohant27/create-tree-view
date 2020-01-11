@@ -2,42 +2,71 @@ var countryArr = [];
 var stateArray = [];
 var cityArray = [];
 var stationArray = [];
-var country = "";
+var country = '';
 const parsedJSON = [];
 var stationPollution = [];
+var stateCityArr = {};
+var cityStationArray = {};
 
-const url =
-  "https://api.data.gov.in/resource/3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69?api-key=579b464db66ec23bdd00000150ba19e8fe0e435558f13bfd0a3b0db7&format=json&offset=0&limit=1000";
+const url = "https://api.data.gov.in/resource/3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69?api-key=579b464db66ec23bdd00000150ba19e8fe0e435558f13bfd0a3b0db7&format=json&offset=0&limit=1000";
 
 function httpGet(theUrl) {
   var xmlHttp = new XMLHttpRequest();
-  xmlHttp.open("GET", theUrl, false); // false for synchronous request
+  xmlHttp.open("GET", theUrl, false);
   xmlHttp.send(null);
   return xmlHttp.responseText;
 }
 var result = httpGet(url);
-
 let recordsArr = JSON.parse(result);
 recordsArr = recordsArr.records;
 
-countryArr = recordsArr.map(item => {
-  return item.country;
-});
-countryArr = findUniqueValues(countryArr);
+//filter country,state,city,station arrays with duplicates
+countryArr = recordsArr.map(item => item.country);
+stateArray = recordsArr.map(item => item.state);
+cityArray = recordsArr.map(item => item.city);
+stationArray = recordsArr.map(item => item.station);
 
-stateArray = recordsArr.map(item => {
-  return item.state;
-});
+//Creating Unique country,state,city,station arrays 
+countryArr = findUniqueValues(countryArr);
 stateArray = findUniqueValues(stateArray);
-cityArray = recordsArr.map(item => {
-  return item.city;
-});
 cityArray = findUniqueValues(cityArray);
-stationArray = recordsArr.map(item => {
-  return item.station;
-});
 stationArray = findUniqueValues(stationArray);
 
+
+if (countryArr.length === 1) {
+  country = countryArr[0];
+  parsedJSON[country] = [];
+}
+stateArray.forEach(state => parsedJSON[country].push(state));
+
+/***Mapping State and City Array */
+
+stateArray.forEach(state => {
+  stateCityArr[state] = [];
+  recordsArr.forEach(record => {
+    if (record.state === state) {
+      stateCityArr[state].push(record.city);
+    }
+    stateCityArr[state] = findUniqueValues(stateCityArr[state]);
+  });
+});
+
+/***Mapping City and Station Array */
+
+cityArray.forEach(city => {
+  cityStationArray[city] = [];
+  recordsArr.forEach(record => {
+    if (record.city === city) {
+      cityStationArray[city].push(record.station);
+    }
+    cityStationArray[city] = findUniqueValues(cityStationArray[city]);
+  });
+});
+
+
+
+
+/***Mapping Station and pollution id */
 stationArray.forEach(station => {
   stationPollution[station] = [];
   recordsArr.forEach(record => {
@@ -47,49 +76,9 @@ stationArray.forEach(station => {
   });
 });
 
-console.log("sss", stationPollution);
-
-if (countryArr.length === 1) {
-  country = countryArr[0];
-  parsedJSON[country] = [];
-}
-console.log(stateArray)
-stateArray.forEach(state => {
-  parsedJSON[country].push(state);
-  parsedJSON[country].state = [];
-});
-
-var stateCityArr = {};
-
-stateArray.forEach(state => {
-  stateCityArr[state] = [];
-
-  recordsArr.forEach(record => {
-    if (record.state === state) {
-      stateCityArr[state].push(record.city);
-    }
-
-    stateCityArr[state] = findUniqueValues(stateCityArr[state]);
-  });
-});
-console.log(stateCityArr)
 
 
-var cityStationArray = {};
-cityArray.forEach(city => {
-  cityStationArray[city] = [];
-
-  recordsArr.forEach(record => {
-    if (record.city === city) {
-      cityStationArray[city].push(record.station);
-    }
-
-    cityStationArray[city] = findUniqueValues(cityStationArray[city]);
-  });
-});
-
-console.log(cityStationArray);
-
+/***Filter Duplicates */
 function findUniqueValues(data) {
   let uniqueArr = [];
   data.forEach(element => {
@@ -100,28 +89,29 @@ function findUniqueValues(data) {
   return uniqueArr;
 }
 
+
+/***Create UL and LI list */
+
+
 var ul = document.createElement("ul");
 ul.className = "myUL";
 function createView() {
   Object.keys(stateCityArr).forEach(state => {
-
     var li = document.createElement("li");
     var text = document.createElement("span");
 
     text.className = "caret";
 
-    var ulCity = "";
-    var liCity = "";
-    var textCity = "";
-    var ulStation = "";
-    var liStation = "";
-    var textStation = "";
+    var ulCity = '';
+    var liCity = '';
+    var textCity = '';
+    var ulStation = '';
+    var liStation = '';
+    var textStation = '';
 
     text.innerHTML = state;
-    console.log(state)
     li.appendChild(text);
     ulCity = document.createElement("ul");
-
 
     Object.keys(cityStationArray).forEach(city => {
       if (stateCityArr[state].includes(city)) {
@@ -133,7 +123,6 @@ function createView() {
         textCity.innerHTML = city;
         liCity.appendChild(textCity);
         ulCity.append(liCity);
-        // text.appendChild(ulCity);
         li.appendChild(ulCity);
 
         cityStationArray[city].forEach(station => {
@@ -144,7 +133,6 @@ function createView() {
           textStation.innerHTML = station;
           liStation.appendChild(textStation);
           ulStation.append(liStation);
-          //textCity.appendChild(ulStation);
           liCity.appendChild(ulStation);
         });
       }
@@ -159,9 +147,8 @@ function createView() {
 document.getElementById("root").appendChild(createView());
 
 var toggler = document.getElementsByClassName("caret");
-console.log(toggler.length);
 for (var i = 0; i < toggler.length; i++) {
-  toggler[i].addEventListener("click", function() {
+  toggler[i].addEventListener("click", function () {
     this.parentElement.querySelector(".nested").classList.toggle("active");
     this.classList.toggle("caret-down");
   });
@@ -176,7 +163,7 @@ function createTable(event) {
   var th4 = document.createElement("th");
 
   table.className = "table-id";
-  table.setAttribute('id',event.target.innerText);
+  table.setAttribute("id", event.target.innerText);
   th1.innerHTML = "Pollution MIN";
   th2.innerHTML = "Pollution MAX";
   th3.innerHTML = "Pollution AVG";
@@ -227,14 +214,10 @@ function createTable(event) {
 
 var stationNames = document.getElementsByClassName("clicker");
 
-console.log(stationNames);
-
 for (var i = 0; i < stationNames.length; i++) {
   var station = stationNames[i];
-  
-  stationNames[i].addEventListener("click", function(station) {
-  
-    document.getElementById("container").innerHTML ='';
+  stationNames[i].addEventListener("click", function (station) {
+    document.getElementById("container").innerHTML = '';
     createTable(station);
   });
 }
